@@ -21,8 +21,15 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.hackathon.androidserver.network.GetDataService;
+import com.hackathon.androidserver.network.RetrofitClientInstance;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
     private static final int READ_SMS_PERMISSIONS_REQUEST = 1;
@@ -45,6 +52,19 @@ public class MainActivity extends AppCompatActivity {
         arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, messageList);
         //refreshSmsInbox();
         messages.setAdapter(arrayAdapter);
+        GetDataService service = RetrofitClientInstance.getRetrofitInstance().create(GetDataService.class);
+        Call<String> call = service.getAllPhotos();
+        call.enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
@@ -88,7 +108,6 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String permissions[],
                                            @NonNull int[] grantResults) {
-        // Make sure it's our original READ_CONTACTS request
         if (requestCode == READ_SMS_PERMISSIONS_REQUEST) {
             if (grantResults.length == 1 &&
                     grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -96,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "Read SMS permission denied", Toast.LENGTH_SHORT).show();
             }
-
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
