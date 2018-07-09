@@ -16,9 +16,11 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.SmsManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.hackathon.androidserver.network.GetDataService;
@@ -26,6 +28,7 @@ import com.hackathon.androidserver.network.RetrofitClientInstance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -34,11 +37,10 @@ import retrofit2.Response;
 public class MainActivity extends AppCompatActivity {
     private static final int READ_SMS_PERMISSIONS_REQUEST = 1;
     private static final int SEND_SMS_PERMISSIONS_REQUEST = 0;
-    ArrayAdapter arrayAdapter;
-    ListView messages;
-    EditText phone;
-
-
+    private ArrayAdapter arrayAdapter;
+    private ListView messages;
+    private EditText phone;
+    private GetDataService ListingService;
     List<String> messageList = new ArrayList<>();
 
     @Override
@@ -50,14 +52,35 @@ public class MainActivity extends AppCompatActivity {
         messages = (ListView) findViewById(R.id.Messages);
         phone = (EditText) findViewById(R.id.phone);
         arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, messageList);
-        //refreshSmsInbox();
         messages.setAdapter(arrayAdapter);
-        GetDataService service = RetrofitClientInstance.getRetrofitInstance().create(GetDataService.class);
-        Call<String> call = service.getAllPhotos();
+        ListingService = RetrofitClientInstance.getRetrofitInstance().create(GetDataService.class);
+    }
+
+    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle b = intent.getExtras();
+            String messageBody = b.getString("messageBody");
+            String messageAddress = b.getString("messageAdress");
+            String str = "SMS From: " + messageAddress +
+                    "\n" + messageBody + "\n";
+            callListingAPI(messageBody,messageAddress);
+            arrayAdapter.add(str);
+            arrayAdapter.notifyDataSetChanged();
+            Toast.makeText(context, str, Toast.LENGTH_SHORT).show();
+
+        }
+    };
+
+    private void callListingAPI(String messageBody, final String messageAddress) {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(messageBody).append("|").append(messageAddress);
+        Call<String> call = ListingService.callFlightListingAPI();
         call.enqueue(new Callback<String>() {
             @Override
             public void onResponse(Call<String> call, Response<String> response) {
-                Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "response is received", Toast.LENGTH_SHORT).show();
+                sendTextMessage(messageAddress,response);
             }
 
             @Override
@@ -65,27 +88,8 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
             }
         });
+
     }
-
-    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-
-            Bundle b = intent.getExtras();
-            String messageBody = b.getString("messageBody");
-            String messageAdress = b.getString("messageAdress");
-            String str = "SMS From: " + messageAdress +
-                    "\n" + messageBody + "\n";
-//            if(messageAdress.equals(phone.getText())) {
-                arrayAdapter.add(str);
-                arrayAdapter.notifyDataSetChanged();
-                Toast.makeText(context, str, Toast.LENGTH_SHORT).show();
-//            }
-//            else{
-//                Toast.makeText(context,"unintended message",Toast.LENGTH_SHORT).show();
-//            }
-        }
-    };
 
     @SuppressLint("NewApi")
     @TargetApi(Build.VERSION_CODES.M)
@@ -139,5 +143,10 @@ public class MainActivity extends AppCompatActivity {
             }
         } while (smsInboxCursor.moveToNext());
         return messageList;
+    }
+
+    public void sendTextMessage(String address,Response<String> response){
+        SmsManager smsManager = SmsManager.getDefault();
+        smsManager.sendTextMessage(address, null, response.body(), null, null);
     }
 }
