@@ -30,7 +30,7 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
                 String address = smsMessage.getOriginatingAddress();
                 Intent intent1 = new Intent("broadCastName");
                 intent1.putExtra("messageBody",smsBody);
-                intent1.putExtra("messageAdress",address);
+                intent1.putExtra("messageAddress",address);
                 context.sendBroadcast(intent1);
             }
 
